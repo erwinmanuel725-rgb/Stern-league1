@@ -59,12 +59,12 @@ function createApp(pool, opts = {}) {
         imgSrc: ["'self'"],               // images locales uniquement
         connectSrc: ["'self'"],
         manifestSrc: ["'self'"],
-        baseUri: ["'self'"], formAction: ["'self'"], frameAncestors: ["'none'"], objectSrc: ["'none'"],
+        baseUri: ["'self'"], formAction: ["'self'"], frameAncestors: ["'self'", "https://huggingface.co", "https://*.hf.space"], objectSrc: ["'none'"],
         ...(cfg.prod ? { upgradeInsecureRequests: [] } : {}),
       },
     },
     hsts: { maxAge: 31536000, includeSubDomains: true },
-    frameguard: { action: 'deny' },
+    frameguard: false, // géré de manière moderne et compatible par frameAncestors ci-dessus
     // « same-origin » (et pas « no-referrer ») : avec no-referrer certains navigateurs envoient « Origin: null » sur les POST
     referrerPolicy: { policy: 'same-origin' },
     crossOriginResourcePolicy: { policy: 'same-origin' },

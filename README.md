@@ -1,6 +1,16 @@
+---
+title: Stern League
+emoji: ⚽
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Stern League – Classement & Paris
 
-Application Node.js (Express) + PostgreSQL, prête pour Railway. Les points sont **fictifs**.
+Application Node.js (Express) + PostgreSQL. Les points sont **fictifs**. Compatible avec Hugging Face Spaces (Docker), Railway, Render, etc.
 
 ## Structure
 
