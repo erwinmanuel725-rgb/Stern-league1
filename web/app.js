@@ -85,19 +85,58 @@
     }
     return s + '</div></div>';
   }
-  function histHtml() {
-    var s = '<h2 class="f">Journées passées</h2>';
-    [3, 2, 1].forEach(function (j) {
-      s += '<div class="card"><b class="f">Journée ' + j + ' · ✅ terminée</b>' + st.history.filter(function (m) { return m.j === j; }).map(function (m) {
-        var x = [m.hs, m.as, m.ff], sc = m.ff ? (m.ff === 1 ? 'F' : 'V') + ' – ' + (m.ff === 2 ? 'F' : 'V') : m.hs + ' – ' + m.as;
-        return '<div class="m hrow"><span class="t r">' + esc(m.h) + '</span>' + av(m.hi, 0, fx(x, 0)) + '<b class="sc2">' + sc + '</b>' + av(m.ai, 0, fx(x, 1)) + '<span class="t">' + esc(m.a) + '</span></div>';
+  function compactDay(j, matches) {
+    // Rendu compact d'une journée entièrement terminée (format historique)
+    return '<div class="card"><b class="f">Journée ' + j + ' · ✅ terminée</b>' +
+      matches.map(function (m) {
+        var x = [m.hs !== undefined ? m.hs : (m.result ? m.result.h : null),
+                 m.as !== undefined ? m.as : (m.result ? m.result.a : null),
+                 m.ff !== undefined ? m.ff : (m.result ? m.result.ff : null)];
+        var sc = x[2] ? (x[2] === 1 ? 'F' : 'V') + ' – ' + (x[2] === 2 ? 'F' : 'V') : x[0] + ' – ' + x[1];
+        var hi = m.hi !== undefined ? m.hi : m.h;
+        var ai = m.ai !== undefined ? m.ai : m.a;
+        var hn = m.h !== undefined && typeof m.h === 'string' ? m.h : (st.players[m.h] ? st.players[m.h].name : '');
+        var an = m.a !== undefined && typeof m.a === 'string' ? m.a : (st.players[m.a] ? st.players[m.a].name : '');
+        return '<div class="m hrow"><span class="t r">' + esc(hn) + '</span>' + av(hi, 0, fx(x, 0)) + '<b class="sc2">' + sc + '</b>' + av(ai, 0, fx(x, 1)) + '<span class="t">' + esc(an) + '</span></div>';
       }).join('') + '</div>';
+  }
+  function histHtml() {
+    // Journées passées (table history_matches) — ordre décroissant dynamique
+    var days = [];
+    st.history.forEach(function (m) { if (days.indexOf(m.j) === -1) days.push(m.j); });
+    days.sort(function (a, b) { return b - a; });
+    if (!days.length) return '';
+    var s = '<h2 class="f">Journées passées</h2>';
+    days.forEach(function (j) {
+      s += compactDay(j, st.history.filter(function (m) { return m.j === j; }));
     });
     return s;
   }
   function viewMatchs() {
-    var up = st.matches.filter(function (m) { return !m.result; }), dn = st.matches.filter(function (m) { return m.result; }).reverse();
-    return (dn.length ? '<h2 class="f">✅ Matchs déjà joués (' + dn.length + ')</h2>' + dn.map(poster).join('') : '<h2 class="f">✅ Matchs déjà joués</h2><p class="mu">Aucun match joué pour le moment dans la journée en cours.</p>') +
+    var up = st.matches.filter(function (m) { return !m.result; });
+    var dn = st.matches.filter(function (m) { return m.result; });
+    var allDone = st.matches.length > 0 && up.length === 0;
+
+    // Si TOUS les matchs de la journée en cours sont terminés → format compact
+    if (allDone) {
+      // Préparer les données au format attendu par compactDay
+      var curMatches = dn.map(function (m) {
+        return {
+          hs: m.result.h, as: m.result.a, ff: m.result.ff || 0,
+          hi: m.h, ai: m.a,
+          h: st.players[m.h] ? st.players[m.h].name : String(m.h),
+          a: st.players[m.a] ? st.players[m.a].name : String(m.a)
+        };
+      });
+      return '<h2 class="f">Journée en cours</h2>' +
+        compactDay(st.cur, curMatches) +
+        '<div class="card tc">🛠️ Organisateur : <b>Apolo</b><br>🛡️ Modérateurs (arbitres) : <b class="gold">Yuta</b> · <b class="gold">Akira</b> · <b class="gold">Apolo</b></div>' +
+        '<h2 class="f">Journée ' + (st.cur + 1) + ' · affiches à venir</h2><p class="mu">La journée suivante est publiée quand tous les matchs de celle-ci sont joués. 3 matchs par jour : 18h, 19h et 20h GMT.</p>' +
+        '<p class="mu">Aucun match à venir.</p>' + histHtml();
+    }
+
+    // Sinon : journée en cours partiellement ou pas commencée — affichage normal
+    return (dn.length ? '<h2 class="f">✅ Matchs déjà joués (' + dn.length + ')</h2>' + dn.slice().reverse().map(poster).join('') : '<h2 class="f">✅ Matchs déjà joués</h2><p class="mu">Aucun match joué pour le moment dans la journée en cours.</p>') +
       '<div class="card tc">🛠️ Organisateur : <b>Apolo</b><br>🛡️ Modérateurs (arbitres) : <b class="gold">Yuta</b> · <b class="gold">Akira</b> · <b class="gold">Apolo</b></div>' +
       '<h2 class="f">Journée ' + st.cur + ' · affiches à venir</h2><p class="mu">La journée suivante est publiée quand tous les matchs de celle-ci sont joués. 3 matchs par jour : 18h, 19h et 20h GMT.</p>' +
       (up.map(poster).join('') || '<p class="mu">Aucun match à venir.</p>') + histHtml();
