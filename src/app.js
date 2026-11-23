@@ -28,22 +28,11 @@ if (process.env.SENTRY_DSN) {
 const id = z.number().int().min(0).max(100000);
 const schemas = {
   claim: z.object({ playerId: id }).strict(),
-  bet: z.union([
-    z.object({ matchId: id, outcome: z.number().int().min(0).max(2), stake: z.number().int().min(1).max(1000), oddSeen: z.number().min(1).max(100).optional() }).strict(),
-    z.object({
-      selections: z.array(z.object({
-        matchId: id,
-        outcome: z.number().int().min(0).max(2),
-        oddSeen: z.number().min(1).max(100).optional(),
-      }).strict()).min(1).max(8),
-      stake: z.number().int().min(1).max(1000),
-    }).strict(),
-  ]),
+  bet: z.object({ matchId: id, outcome: z.number().int().min(0).max(2), stake: z.number().int().min(1).max(1000), oddSeen: z.number().min(1).max(100).optional() }).strict(),
   login: z.object({ password: z.string().min(1).max(200) }).strict(),
   result: z.union([
     z.object({ matchId: id, home: z.number().int().min(0).max(99), away: z.number().int().min(0).max(99) }).strict(),
     z.object({ matchId: id, forfeit: z.union([z.literal(1), z.literal(2)]) }).strict(),
-    z.object({ matchId: id, voided: z.literal(true) }).strict(),
   ]),
   points: z.object({ playerId: id, newTotal: z.number().int().min(0).max(10000000).optional(), delta: z.number().int().min(-10000000).max(10000000).optional(), reason: z.string().trim().min(1).max(200) })
     .strict().refine((v) => (v.newTotal === undefined) !== (v.delta === undefined)),
@@ -130,8 +119,7 @@ function createApp(pool, opts = {}) {
     const me = await auth.playerFromRequest(pool, req);
     if (!me) throw new HttpError(401, 'Choisis d’abord ton pseudo en haut de la page.');
     const b = parse(schemas.bet, req.body);
-    const selections = b.selections || [{ matchId: b.matchId, outcome: b.outcome, oddSeen: b.oddSeen }];
-    const out = await S.placeBet(pool, { playerId: me.id, selections, stake: b.stake, now: opts.now ? opts.now() : new Date() });
+    const out = await S.placeBet(pool, { playerId: me.id, matchId: b.matchId, outcome: b.outcome, stake: b.stake, oddSeen: b.oddSeen, now: opts.now ? opts.now() : new Date() });
     events.notify();
     res.status(201).json({ ok: true, ...out });
   }));

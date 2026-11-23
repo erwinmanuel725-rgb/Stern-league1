@@ -43,14 +43,13 @@
   function viewRes() {
     var ms = A.matches.filter(function (m) { return m.j === md; });
     return '<div class="fld"><label class="mu" for="mdsel">Journée :</label><select id="mdsel">' + mdOptions() + '</select></div>' + ms.map(function (m) {
-      var r = m.result, sc = r ? (r.voided ? '🚫 ANNULÉ' : r.ff ? (r.ff === 1 ? 'F' : 'V') + ' – ' + (r.ff === 2 ? 'F' : 'V') : r.h + ' – ' + r.a) : null;
+      var r = m.result, sc = r ? (r.ff ? (r.ff === 1 ? 'F' : 'V') + ' – ' + (r.ff === 2 ? 'F' : 'V') : r.h + ' – ' + r.a) : null;
       return '<div class="card"><div class="m"><span class="mu">' + fdate(m.date) + ' · ' + m.hour + 'h GMT · 🛡️ ' + esc(m.referee) + '</span><span class="mu">' + m.bets + ' pari(s) · ' + fmt(m.staked) + ' pts</span></div>' +
         '<div class="m crow"><span class="t r">' + esc(pname(m.h)) + '</span><b class="sc2">' + (sc || 'vs') + '</b><span class="t">' + esc(pname(m.a)) + '</span></div>' +
-        '<div class="fld"><label class="sr" for="ha' + m.id + '">Buts ' + esc(pname(m.h)) + '</label><input class="w2" type="number" min="0" max="99" id="ha' + m.id + '" value="' + (r && !r.ff && !r.voided ? r.h : '') + '"> – ' +
-        '<label class="sr" for="aa' + m.id + '">Buts ' + esc(pname(m.a)) + '</label><input class="w2" type="number" min="0" max="99" id="aa' + m.id + '" value="' + (r && !r.ff && !r.voided ? r.a : '') + '">' +
+        '<div class="fld"><label class="sr" for="ha' + m.id + '">Buts ' + esc(pname(m.h)) + '</label><input class="w2" type="number" min="0" max="99" id="ha' + m.id + '" value="' + (r && !r.ff ? r.h : '') + '"> – ' +
+        '<label class="sr" for="aa' + m.id + '">Buts ' + esc(pname(m.a)) + '</label><input class="w2" type="number" min="0" max="99" id="aa' + m.id + '" value="' + (r && !r.ff ? r.a : '') + '">' +
         '<button type="button" class="btn g sm" data-act="save" data-m="' + m.id + '">' + (r ? 'Corriger' : 'Valider') + '</button>' +
         '<button type="button" class="btn g sm" data-act="ff" data-m="' + m.id + '" data-ff="1">🚩 Forfait gauche</button><button type="button" class="btn g sm" data-act="ff" data-m="' + m.id + '" data-ff="2">🚩 Forfait droite</button>' +
-        '<button type="button" class="btn g sm" data-act="void" data-m="' + m.id + '">🚫 Annulé / Reporté</button>' +
         (r ? '<button type="button" class="btn dg sm" data-act="cancel" data-m="' + m.id + '">' + (confirmCancel === m.id ? 'Confirmer l’annulation' : 'Annuler le résultat') + '</button>' : '') + '</div></div>';
     }).join('');
   }
@@ -107,11 +106,6 @@
       if (a === 'ff') body.forfeit = ff;
       else { var h = parseInt($('#ha' + id).value, 10), v = parseInt($('#aa' + id).value, 10); if (isNaN(h) || isNaN(v)) return toast('Entre les deux scores.', 'err'); body.home = h; body.away = v; }
       act(api(m.result ? 'PUT' : 'POST', '/results', body), function (r) { return 'Résultat enregistré' + (r.settled ? ' · ' + r.settled + ' pari(s) réglé(s)' : '') + (r.reversed ? ' (' + r.reversed + ' re-réglé(s))' : ''); });
-    } else if (a === 'void') {
-      var m = A.matches.filter(function (z) { return z.id === id; })[0];
-      act(api(m.result ? 'PUT' : 'POST', '/results', { matchId: id, voided: true }), function (r) {
-        return 'Match annulé/reporté (cote 1.00)' + (r.settled ? ' · ' + r.settled + ' pari(s) réglé(s)' : '');
-      });
     } else if (a === 'cancel') {
       if (confirmCancel !== id) { confirmCancel = id; render(); return; }
       confirmCancel = null; act(api('DELETE', '/results/' + id), function (r) { return 'Résultat annulé · ' + r.reversed + ' pari(s) remis en jeu'; });

@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS results (
   home_goals smallint NOT NULL CHECK (home_goals >= 0),
   away_goals smallint NOT NULL CHECK (away_goals >= 0),
   forfeit smallint NOT NULL DEFAULT 0 CHECK (forfeit IN (0,1,2)),
-  voided boolean NOT NULL DEFAULT false,
   entered_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS history_matches (
@@ -37,30 +36,17 @@ CREATE TABLE IF NOT EXISTS history_matches (
 CREATE TABLE IF NOT EXISTS bets (
   id bigserial PRIMARY KEY,
   player_id smallint NOT NULL REFERENCES players(id),
-  match_id int REFERENCES matches(id),
-  outcome smallint CHECK (outcome IN (0,1,2)),
+  match_id int NOT NULL REFERENCES matches(id),
+  outcome smallint NOT NULL CHECK (outcome IN (0,1,2)),
   stake int NOT NULL CHECK (stake > 0 AND stake <= 1000),
   odd double precision NOT NULL,
-  status char(1) NOT NULL DEFAULT 'p' CHECK (status IN ('p','w','l','v')),
+  status char(1) NOT NULL DEFAULT 'p' CHECK (status IN ('p','w','l')),
   delta int,
-  type varchar(10) NOT NULL DEFAULT 'single' CHECK (type IN ('single','combo')),
   created_at timestamptz NOT NULL DEFAULT now(),
   settled_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS bets_match ON bets(match_id);
 CREATE INDEX IF NOT EXISTS bets_player ON bets(player_id);
-CREATE TABLE IF NOT EXISTS bet_legs (
-  id bigserial PRIMARY KEY,
-  bet_id bigint NOT NULL REFERENCES bets(id) ON DELETE CASCADE,
-  match_id int NOT NULL REFERENCES matches(id),
-  outcome smallint NOT NULL CHECK (outcome IN (0,1,2)),
-  odd double precision NOT NULL,
-  status char(1) NOT NULL DEFAULT 'p' CHECK (status IN ('p','w','l','v')),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (bet_id, match_id)
-);
-CREATE INDEX IF NOT EXISTS bet_legs_match ON bet_legs(match_id);
-CREATE INDEX IF NOT EXISTS bet_legs_bet ON bet_legs(bet_id);
 CREATE TABLE IF NOT EXISTS wallet_transactions (
   id bigserial PRIMARY KEY,
   player_id smallint NOT NULL REFERENCES players(id),

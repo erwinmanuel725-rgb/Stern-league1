@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // Tout le calcul (cotes, solde, règlement) est fait par le serveur : ici on ne fait qu'afficher et envoyer des demandes.
-  var st = null, tab = 'matchs', pick = {}, ticketStake = 100, offline = false, confirmRelease = false, toastTimer = null;
+  var st = null, tab = 'matchs', pick = {}, stakes = {}, offline = false, confirmRelease = false, toastTimer = null;
   var $ = function (s) { return document.querySelector(s); };
   var esc = function (v) { return String(v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
 
@@ -77,12 +77,11 @@
       '<div class="side">' + av(m.a, 1, fx(x, 1)) + '<b class="f">' + esc(a) + '</b></div></div>';
     if (!x) {
       s += '<div class="odds">' + [h, 'Match nul', a].map(function (l, k) {
-        var sel = pick[m.id] === k;
-        return '<button type="button" class="' + (sel ? 'sel' : '') + '" data-act="pick" data-m="' + m.id + '" data-k="' + k + '" aria-pressed="' + sel + '"' + (m.open ? '' : ' disabled') + '>' + esc(l) + '<b>' + m.odds[k].toFixed(2) + '</b></button>';
+        return '<button type="button" class="' + (pick[m.id] === k ? 'sel' : '') + '" data-act="pick" data-m="' + m.id + '" data-k="' + k + '" aria-pressed="' + (pick[m.id] === k) + '"' + (m.open ? '' : ' disabled') + '>' + esc(l) + '<b>' + m.odds[k].toFixed(2) + '</b></button>';
       }).join('') + '</div>';
       if (!m.open) s += '<div class="closed">🔒 Paris clos : le match a commencé.</div>';
       else if (own) s += '<div class="mu tc mt8">Tu joues ce match : pas de pari possible.</div>';
-      else s += '<div class="mu tc mt8">' + (pick[m.id] !== undefined ? '<b class="gold">✓ Sélectionné dans ton ticket</b>' : 'Clique sur une cote pour l’ajouter au ticket') + '</div>';
+      else s += '<div class="bet"><label class="sr" for="st' + m.id + '">Mise en points</label><input type="number" id="st' + m.id + '" data-stake="' + m.id + '" min="1" max="1000" step="1" value="' + esc(stakes[m.id] || 100) + '"><span class="mu">pts</span><button type="button" class="btn" data-act="bet" data-m="' + m.id + '">PARIER</button></div>';
     }
     return s + '</div></div>';
   }
@@ -210,163 +209,44 @@
   function viewParis() {
     if (!st.me) return '<div class="card mu">Choisis ton pseudo en haut pour voir tes paris.</div>';
     if (!st.bets.length) return '<div class="card mu">Aucun pari pour l’instant. Va dans « Matchs » pour miser tes points.</div>';
-
     return st.bets.map(function (b) {
-      var isCombo = b.type === 'combo' || (b.legs && b.legs.length > 1);
-      var badge = '<span class="tag ' + b.s + '">' + (b.s === 'p' ? 'En cours' : b.s === 'w' ? 'Gagné +' + fmt(b.delta) : 'Perdu −' + fmt(b.st)) + '</span>';
-
-      if (isCombo) {
-        var legsHtml = (b.legs || []).map(function (l) {
-          var m = st.matches.filter(function (z) { return z.id === l.m; })[0];
-          var title = m ? esc(nameOf(m.h)) + ' vs ' + esc(nameOf(m.a)) : 'Match n°' + l.m;
-          var c = !m ? '' : l.k === 0 ? nameOf(m.h) : l.k === 1 ? 'Match nul' : nameOf(m.a);
-          var lBadge = l.s === 'w' ? '<span class="tag w">✅ Gagné</span>' :
-                       l.s === 'l' ? '<span class="tag l">❌ Perdu</span>' :
-                       l.s === 'v' ? '<span class="tag mu">⚪ Annulé (1.00)</span>' :
-                                     '<span class="tag p">⏳ En attente</span>';
-          return '<div class="m hrow"><div class="t"><div class="f-sm">' + title + '</div><div class="mu">Pronostic : <b>' + esc(c) + '</b> · cote ' + Number(l.odd).toFixed(2) + '</div></div>' + lBadge + '</div>';
-        }).join('');
-
-        return '<div class="card">' +
-          '<div class="m mb8"><div><b class="f">🎟️ Combiné (' + (b.legs ? b.legs.length : 0) + ' sélections)</b>' +
-          '<div class="mu">Mise : ' + fmt(b.st) + ' pts · Cote totale : <b>' + Number(b.odd).toFixed(2) + '</b> · Gain pot. : <b>' + fmt(Math.round(b.st * b.odd)) + ' pts</b></div></div>' + badge + '</div>' +
-          '<div class="combo-legs">' + legsHtml + '</div>' +
-          '</div>';
-      }
-
       var m = st.matches.filter(function (z) { return z.id === b.m; })[0];
       var title = m ? esc(nameOf(m.h)) + ' vs ' + esc(nameOf(m.a)) : 'Match n°' + b.m;
       var c = !m ? '' : b.k === 0 ? nameOf(m.h) : b.k === 1 ? 'Match nul' : nameOf(m.a);
-      return '<div class="card"><div class="m"><div><b>' + title + '</b><div class="mu">Pari : ' + esc(c) + ' · mise ' + fmt(b.st) + ' pt(s) · cote ' + Number(b.odd).toFixed(2) + ' · Gain pot. : ' + fmt(Math.round(b.st * b.odd)) + ' pts</div></div>' + badge + '</div></div>';
+      return '<div class="card"><div class="m"><div><b>' + title + '</b><div class="mu">Pari : ' + esc(c) + ' · mise ' + b.st + ' pt(s) · cote ' + Number(b.odd).toFixed(2) + '</div></div><span class="tag ' + b.s + '">' +
+        (b.s === 'p' ? 'En cours' : b.s === 'w' ? 'Gagné +' + b.delta : 'Perdu −' + b.st) + '</span></div></div>';
     }).join('');
   }
   var TABS = [['matchs', '⚔️ Matchs'], ['class', '🏆 Classement'], ['but', '🎯 Buteurs'], ['pts', '💰 Points'], ['paris', '🎟️ Mes paris']];
   var VIEWS = { matchs: viewMatchs, class: viewClass, but: viewBut, pts: viewPts, paris: viewParis };
 
-  function renderBetslip() {
-    var el = $('#betslip');
-    if (!el) return;
-    var mIds = Object.keys(pick);
-    if (!mIds.length || tab !== 'matchs') {
-      el.style.display = 'none';
-      el.innerHTML = '';
-      return;
-    }
-    el.style.display = 'flex';
-
-    var count = mIds.length;
-    var isCombo = count > 1;
-    var title = isCombo ? '🎟️ Combiné (' + count + ' matchs)' : '🎟️ Pari simple (1 match)';
-
-    var oddsList = [];
-    var itemsHtml = mIds.map(function (mid) {
-      var m = st.matches.filter(function (z) { return z.id === +mid; })[0];
-      if (!m) return '';
-      var k = pick[mid];
-      var label = k === 0 ? nameOf(m.h) : k === 1 ? 'Match nul' : nameOf(m.a);
-      var odd = m.odds[k];
-      oddsList.push(odd);
-      return '<div class="bs-item">' +
-        '<div class="bs-row"><span class="bs-match">' + esc(nameOf(m.h)) + ' vs ' + esc(nameOf(m.a)) + '</span>' +
-        '<button type="button" class="bs-del" data-act="unpick" data-m="' + m.id + '" title="Retirer de mon ticket">✕</button></div>' +
-        '<div class="bs-row"><span class="bs-choice">Choix : <b>' + esc(label) + '</b></span><span class="bs-odd">' + odd.toFixed(2) + '</span></div>' +
-      '</div>';
-    }).join('');
-
-    var totalOdd = oddsList.length ? oddsList.reduce(function (acc, o) { return acc * o; }, 1) : 1;
-    totalOdd = Math.round(totalOdd * 100) / 100;
-
-    var stake = parseInt(ticketStake || '100', 10);
-    if (isNaN(stake) || stake < 0) stake = 0;
-    var potWin = Math.round(stake * totalOdd);
-    var potNet = Math.max(0, Math.round(stake * (totalOdd - 1)));
-    var avail = st.me ? st.me.available : 0;
-    var disabled = !st.me || stake < 1 || stake > 1000 || stake > avail;
-
-    var h = '<div class="bs-head">' +
-      '<b class="f">' + title + '</b>' +
-      '<button type="button" class="btn g sm" data-act="clear-ticket">Vider</button>' +
-    '</div>' +
-    '<div class="bs-body">' + itemsHtml + '</div>' +
-    '<div class="bs-foot">' +
-      '<div class="bs-row"><span class="mu">Cote totale :</span><b class="bs-tot-odd">' + totalOdd.toFixed(2) + '</b></div>' +
-      '<div class="bs-row"><label class="mu" for="tstake">Mise (max 1000) :</label><div class="bs-stake-box"><input type="number" id="tstake" min="1" max="1000" step="1" value="' + esc(ticketStake) + '"><span class="mu">pts</span></div></div>' +
-      '<div class="bs-row"><span class="mu">Gain potentiel :</span><b class="bs-gain">' + fmt(potWin) + ' pts <small class="mu">(+' + fmt(potNet) + ' net)</small></b></div>' +
-      (st.me ? '<div class="mu tc">Disponible : <b>' + fmt(avail) + '</b> pts</div>' : '<div class="mu tc rd">Choisis ton pseudo en haut pour parier</div>') +
-      '<button type="button" class="btn bs-btn" data-act="submit-ticket"' + (disabled ? ' disabled' : '') + '>' +
-        'VALIDER (' + fmt(stake) + ' pts)' +
-      '</button>' +
-    '</div>';
-
-    el.innerHTML = h;
-  }
-
   function render() {
     if (!st) return;
-    var ae = document.activeElement, keep = ae && ae.id && /^(tstake|who)$/.test(ae.id) ? { id: ae.id, s: ae.selectionStart } : null;
+    var ae = document.activeElement, keep = ae && ae.id && /^(st\d+|who)$/.test(ae.id) ? { id: ae.id, s: ae.selectionStart } : null;
     $('#nav').innerHTML = TABS.map(function (t) { return '<button type="button" class="' + (tab === t[0] ? 'on' : '') + '" data-act="tab" data-t="' + t[0] + '"' + (tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + '</button>'; }).join('');
     renderMe();
     $('#view').innerHTML = VIEWS[tab]();
     $('#view').setAttribute('aria-busy', 'false');
-    renderBetslip();
     if (keep) { var n = document.getElementById(keep.id); if (n) { n.focus(); try { n.setSelectionRange(keep.s, keep.s); } catch (e) { /* select : pas de curseur */ } } }
   }
 
   // ---------- actions (délégation d'événements : aucun onclick dans le HTML) ----------
-  function submitTicket() {
+  function place(mid) {
     if (!st.me) return toast('Choisis d’abord ton pseudo en haut de la page.', 'err');
-    var mIds = Object.keys(pick);
-    if (!mIds.length) return toast('Sélectionne au moins un match.', 'err');
-    var stake = parseInt(ticketStake || '100', 10);
-    if (!(stake >= 1 && stake <= 1000)) return toast('Mise invalide (entre 1 et 1000 pts).', 'err');
-    if (stake > st.me.available) return toast('Mise supérieure à tes points disponibles.', 'err');
-
-    var selections = mIds.map(function (mid) {
-      var m = st.matches.filter(function (z) { return z.id === +mid; })[0];
-      var k = pick[mid];
-      return { matchId: +mid, outcome: k, oddSeen: m.odds[k] };
-    });
-
-    api('POST', '/bets', { selections: selections, stake: stake }).then(function (r) {
-      pick = {};
-      var msg = (r.type === 'combo' ? 'Combiné enregistré (' + r.selections.length + ' matchs) : ' : 'Pari enregistré : ') +
-        r.stake + ' pts à la cote ' + r.odd.toFixed(2) + ' ✅';
-      toast(msg, 'good');
-      return load();
-    }).catch(function (e) {
-      toast(e.message, 'err');
-      if (e.status === 409) load();
-    });
+    var m = st.matches.filter(function (z) { return z.id === mid; })[0], k = pick[mid];
+    if (k === undefined) return toast('Choisis une issue.', 'err');
+    var stake = parseInt(stakes[mid] || '100', 10);
+    if (!(stake > 0)) return toast('Mise invalide.', 'err');
+    api('POST', '/bets', { matchId: mid, outcome: k, stake: stake, oddSeen: m.odds[k] }).then(function (r) {
+      delete pick[mid]; toast('Pari enregistré : ' + r.stake + ' pts à la cote ' + r.odd.toFixed(2) + ' ✅', 'good'); return load();
+    }).catch(function (e) { toast(e.message, 'err'); if (e.status === 409) load(); });
   }
-
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
     var a = b.getAttribute('data-act');
     if (a === 'tab') { tab = b.getAttribute('data-t'); render(); }
-    else if (a === 'pick') {
-      var mid = +b.getAttribute('data-m'), k = +b.getAttribute('data-k');
-      if (pick[mid] === k) {
-        delete pick[mid]; // Re-cliquer la retire
-      } else {
-        if (Object.keys(pick).length >= 8 && pick[mid] === undefined) {
-          toast('Maximum 8 sélections dans un combiné.', 'err');
-          return;
-        }
-        pick[mid] = k; // Remplace ou ajoute
-      }
-      render();
-    }
-    else if (a === 'unpick') {
-      delete pick[+b.getAttribute('data-m')];
-      render();
-    }
-    else if (a === 'clear-ticket') {
-      pick = {};
-      render();
-    }
-    else if (a === 'submit-ticket') {
-      submitTicket();
-    }
+    else if (a === 'pick') { pick[+b.getAttribute('data-m')] = +b.getAttribute('data-k'); render(); }
+    else if (a === 'bet') place(+b.getAttribute('data-m'));
     else if (a === 'reload') load();
     else if (a === 'release') {
       if (!confirmRelease) { confirmRelease = true; renderMe(); setTimeout(function () { confirmRelease = false; if (st) renderMe(); }, 5000); return; }
@@ -374,12 +254,7 @@
       api('POST', '/me/release').then(function () { toast('Pseudo libéré.', 'good'); return load(); }).catch(function (e) { toast(e.message, 'err'); });
     }
   });
-  document.addEventListener('input', function (ev) {
-    if (ev.target.id === 'tstake') {
-      ticketStake = ev.target.value;
-      renderBetslip();
-    }
-  });
+  document.addEventListener('input', function (ev) { var n = ev.target.getAttribute && ev.target.getAttribute('data-stake'); if (n) stakes[+n] = ev.target.value; });
   document.addEventListener('change', function (ev) {
     if (ev.target.id !== 'who' || !ev.target.value) return;
     api('POST', '/me/claim', { playerId: +ev.target.value }).then(function () { toast('Pseudo réservé pour cet appareil ✅', 'good'); return load(); })

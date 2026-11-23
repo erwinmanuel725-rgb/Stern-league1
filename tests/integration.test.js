@@ -71,47 +71,6 @@ describe('intégration Postgres', { skip: !url && 'TEST_DATABASE_URL non défini
     assert.equal(await bal(PER_SON), b0[0] + gain);
     for (const id of [PER_SON, MANJIRO]) assert.equal(await journalSum(id), await bal(id)); // balance = somme du journal
   });
-  it('combiné : 3 matchs (gagnant, annulé), validation et calcul de gain', async () => {
-    const core = await S.loadCore(pool);
-    const o1 = D.odds(core.rows, 11, 17)[0]; // Match 1 outcome 0
-    const o2 = D.odds(core.rows, 15, 4)[0];  // Match 2 outcome 0
-    const o3 = D.odds(core.rows, 9, 3)[0];   // Match 3 outcome 0
-
-    // Refus de combiner 2 issues du même match
-    await assert.rejects(
-      S.placeBet(pool, { playerId: PER_SON, selections: [{ matchId: 1, outcome: 0 }, { matchId: 1, outcome: 1 }], stake: 100, now: T0 }),
-      (e) => code(e) === 400
-    );
-
-    // Combiné valide de 3 matchs
-    const combo = await S.placeBet(pool, {
-      playerId: PER_SON,
-      selections: [{ matchId: 1, outcome: 0 }, { matchId: 2, outcome: 0 }, { matchId: 3, outcome: 0 }],
-      stake: 100,
-      now: T0,
-    });
-    assert.equal(combo.type, 'combo');
-    assert.equal(combo.odd, D.comboOdds([o1, o2, o3]));
-
-    // Match 1 gagné
-    await S.setResult(pool, { matchId: 1, home: 2, away: 0 });
-    let bRow = (await pool.query('SELECT * FROM bets WHERE id=$1', [combo.id])).rows[0];
-    assert.equal(bRow.status, 'p');
-
-    // Match 2 annulé (cote 1.00)
-    await S.setResult(pool, { matchId: 2, voided: true });
-    bRow = (await pool.query('SELECT * FROM bets WHERE id=$1', [combo.id])).rows[0];
-    assert.equal(bRow.status, 'p');
-
-    // Match 3 gagné -> le combiné gagne avec cote o1 * 1.0 * o3
-    const beforeWin = await bal(PER_SON);
-    await S.setResult(pool, { matchId: 3, home: 3, away: 1 });
-    bRow = (await pool.query('SELECT * FROM bets WHERE id=$1', [combo.id])).rows[0];
-    assert.equal(bRow.status, 'w');
-    const expectedOdd = D.comboOdds([o1, 1.0, o3]);
-    const expectedGain = Math.round(100 * (expectedOdd - 1));
-    assert.equal(await bal(PER_SON), beforeWin + expectedGain);
-  });
   it('forfait : 0-3 règle les paris, un résultat existant ne s’écrase pas par erreur', async () => {
     const a = await bet(PER_SON, 1, 2, 50); // extérieur gagne
     const before = await bal(PER_SON);
