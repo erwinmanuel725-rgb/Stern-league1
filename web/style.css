@@ -87,7 +87,9 @@ label.mu{display:inline-block}
 .fld input[type=password],.fld input[type=text]{width:240px;max-width:90vw}
 .fld input.w2{width:70px;text-align:center}.fld input.w3{width:110px}
 table.small{min-width:0;font-size:.8rem}td.l{text-align:left;word-break:break-word}
-.hrow{padding:6px 0;border-bottom:1px solid #16307a}
+.hrow{padding:8px 0;border-bottom:1px solid #16307a}
+.hrow .t{font-weight:700;font-size:.92rem}
+.hrow .sc2{font-size:1.2rem;font-weight:900;color:#fff;letter-spacing:.04em;text-shadow:0 0 10px var(--bl)}
 .dot-bl{background:#2f7bff}.dot-gr{background:#4a5578}.dot-rd{background:#e11d2e}
 table.narrow{min-width:380px}.rk-gr{background:#4a5578}
 .crow{padding:5px 0;border-bottom:1px solid #16307a}
