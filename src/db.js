@@ -38,6 +38,38 @@ async function migrate(pool) {
   await tx(pool, async (c) => {
     await c.query('SELECT pg_advisory_xact_lock(727001)');
     await c.query(schema);
+
+    // Évolution de schéma pour bases existantes (idempotent)
+    await c.query(`ALTER TABLE bets ALTER COLUMN match_id DROP NOT NULL`).catch(() => {});
+    await c.query(`ALTER TABLE bets ALTER COLUMN outcome DROP NOT NULL`).catch(() => {});
+    await c.query(`ALTER TABLE bets ADD COLUMN IF NOT EXISTS type varchar(10) NOT NULL DEFAULT 'single'`).catch(() => {});
+    await c.query(`ALTER TABLE results ADD COLUMN IF NOT EXISTS voided boolean NOT NULL DEFAULT false`).catch(() => {});
+    await c.query(`
+      CREATE TABLE IF NOT EXISTS bet_legs (
+        id bigserial PRIMARY KEY,
+        bet_id bigint NOT NULL REFERENCES bets(id) ON DELETE CASCADE,
+        match_id int NOT NULL REFERENCES matches(id),
+        outcome smallint NOT NULL CHECK (outcome IN (0,1,2)),
+        odd double precision NOT NULL,
+        status char(1) NOT NULL DEFAULT 'p' CHECK (status IN ('p','w','l','v')),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (bet_id, match_id)
+      )
+    `);
+    await c.query(`CREATE INDEX IF NOT EXISTS bet_legs_match ON bet_legs(match_id)`);
+    await c.query(`CREATE INDEX IF NOT EXISTS bet_legs_bet ON bet_legs(bet_id)`);
+
+    // Migration des paris simples existants vers bet_legs (sans perte de données)
+    await c.query(`
+      INSERT INTO bet_legs(bet_id, match_id, outcome, odd, status, created_at)
+      SELECT id, match_id, outcome, odd,
+             CASE WHEN status IN ('w','l','v') THEN status ELSE 'p' END,
+             created_at
+      FROM bets
+      WHERE match_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM bet_legs WHERE bet_legs.bet_id = bets.id)
+    `);
+
     const { rows } = await c.query('SELECT count(*)::int AS n FROM players');
     if (rows[0].n > 0) return;
 

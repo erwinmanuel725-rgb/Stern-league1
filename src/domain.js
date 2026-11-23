@@ -20,7 +20,7 @@ function standings(players, matches, results) {
   }]));
   for (const m of matches) {
     const r = results.get(m.id);
-    if (!r) continue;
+    if (!r || r.voided) continue; // un match annulé/reporté n'influe pas sur le classement
     const H = t.get(m.home), A = t.get(m.away);
     if (!H || !A) continue;
     H.j++; A.j++;
@@ -46,11 +46,41 @@ function odds(rows, homeId, awayId) {
   return p.map((q) => Math.min(12, Math.max(1.15, Math.round((0.92 / q) * 100) / 100)));
 }
 
-/** Règlement d'un pari : gain = mise × (cote − 1), perte = mise. */
+/** Règlement d'un pari simple : gain = mise × (cote − 1), perte = mise. */
 function settleBet(bet, outcome) {
+  if (outcome === 'v') { // match annulé / reporté
+    return { status: 'w', delta: 0, odd: 1.0 };
+  }
   return bet.outcome === outcome
     ? { status: 'w', delta: Math.round(bet.stake * (bet.odd - 1)) }
     : { status: 'l', delta: -bet.stake };
+}
+
+/** Calcul de la cote totale d'un combiné : produit des cotes, arrondie à 2 décimales. */
+function comboOdds(oddsList) {
+  if (!oddsList || !oddsList.length) return 1.0;
+  const product = oddsList.reduce((acc, o) => acc * o, 1);
+  return Math.round(product * 100) / 100;
+}
+
+/**
+ * Règlement d'un pari (simple ou combiné) à partir de ses sélections (legs) :
+ * legs : [ { outcome, odd, status: 'p'|'w'|'l'|'v' } ]
+ * - Perdant dès qu'une sélection est perdue ('l').
+ * - Gagnant quand TOUTES les sélections sont gagnantes ('w') ou annulées ('v').
+ *   Les sélections annulées ('v') comptent pour une cote de 1.00.
+ * - En attente ('p') sinon.
+ */
+function settleCombo(stake, legs) {
+  if (legs.some((l) => l.status === 'l')) {
+    return { status: 'l', delta: -stake, odd: comboOdds(legs.map((l) => l.odd)) };
+  }
+  if (legs.length > 0 && legs.every((l) => l.status === 'w' || l.status === 'v')) {
+    const effectiveOdd = legs.reduce((acc, l) => acc * (l.status === 'v' ? 1.0 : l.odd), 1);
+    const roundedOdd = Math.max(1.0, Math.round(effectiveOdd * 100) / 100);
+    return { status: 'w', delta: Math.round(stake * (roundedOdd - 1)), odd: roundedOdd };
+  }
+  return { status: 'p', delta: null, odd: comboOdds(legs.map((l) => l.odd)) };
 }
 
 /** Journée en cours : la première (à partir de la J4) qui a encore un match sans résultat. */
@@ -69,4 +99,4 @@ function kickoff(start, m) {
 }
 function isoDate(start, m) { return kickoff(start, m).toISOString().slice(0, 10); }
 
-module.exports = { OUTCOMES, outcomeOf, forfeitScore, standings, sortStandings, odds, settleBet, currentMatchday, kickoff, isoDate };
+module.exports = { OUTCOMES, outcomeOf, forfeitScore, standings, sortStandings, odds, settleBet, comboOdds, settleCombo, currentMatchday, kickoff, isoDate };

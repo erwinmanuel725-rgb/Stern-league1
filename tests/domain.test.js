@@ -46,6 +46,49 @@ test('règlement : gain = mise×(cote−1), perte = mise', () => {
   assert.deepEqual(D.settleBet(bet, 1), { status: 'l', delta: -100 });
   assert.deepEqual(D.settleBet({ outcome: 1, stake: 333, odd: 4.18 }, 1), { status: 'w', delta: 1059 });
 });
+
+test('combinés : calcul de la cote totale (produit arrondi)', () => {
+  assert.equal(D.comboOdds([2.0, 3.0]), 6.0);
+  assert.equal(D.comboOdds([1.85, 2.10, 1.50]), 5.83); // 1.85 * 2.10 * 1.50 = 5.8275 -> 5.83
+  assert.equal(D.comboOdds([1.15, 1.20]), 1.38);
+});
+
+test('combinés : règlement (gagnant, perdant, annulé, en attente)', () => {
+  const stake = 100;
+  // 1. Combiné 3 matchs entièrement gagnant
+  const legsWon = [
+    { matchId: 1, outcome: 0, odd: 2.0, status: 'w' },
+    { matchId: 2, outcome: 1, odd: 3.0, status: 'w' },
+    { matchId: 3, outcome: 0, odd: 1.5, status: 'w' },
+  ];
+  // Cote = 2.0 * 3.0 * 1.5 = 9.00 -> gain net = 100 * (9.00 - 1) = 800
+  assert.deepEqual(D.settleCombo(stake, legsWon), { status: 'w', delta: 800, odd: 9.00 });
+
+  // 2. Combiné 3 matchs avec un match perdu (perdant dès la 1ère défaite)
+  const legsOneLost = [
+    { matchId: 1, outcome: 0, odd: 2.0, status: 'w' },
+    { matchId: 2, outcome: 1, odd: 3.0, status: 'l' },
+    { matchId: 3, outcome: 0, odd: 1.5, status: 'p' }, // 3e match même pas encore joué
+  ];
+  assert.deepEqual(D.settleCombo(stake, legsOneLost), { status: 'l', delta: -100, odd: 9.00 });
+
+  // 3. Combiné 3 matchs avec un match annulé/reporté ('v' = cote 1.00)
+  const legsWithVoid = [
+    { matchId: 1, outcome: 0, odd: 2.0, status: 'w' },
+    { matchId: 2, outcome: 1, odd: 3.0, status: 'v' }, // match annulé -> cote 1.00
+    { matchId: 3, outcome: 0, odd: 1.5, status: 'w' },
+  ];
+  // Cote effective = 2.0 * 1.0 * 1.5 = 3.00 -> gain net = 100 * (3.00 - 1) = 200
+  assert.deepEqual(D.settleCombo(stake, legsWithVoid), { status: 'w', delta: 200, odd: 3.00 });
+
+  // 4. Combiné en attente (aucun match perdu, mais certains encore en cours)
+  const legsPending = [
+    { matchId: 1, outcome: 0, odd: 2.0, status: 'w' },
+    { matchId: 2, outcome: 1, odd: 3.0, status: 'p' },
+    { matchId: 3, outcome: 0, odd: 1.5, status: 'p' },
+  ];
+  assert.deepEqual(D.settleCombo(stake, legsPending), { status: 'p', delta: null, odd: 9.00 });
+});
 test('journée en cours et coup d’envoi', () => {
   const ms = fixtures.map((m) => ({ id: m.id, matchday: m.matchday, day_in_md: m.day_in_md, hour: m.hour }));
   assert.equal(D.currentMatchday(ms, new Map()), 4);
