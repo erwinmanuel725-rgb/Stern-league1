@@ -3,11 +3,11 @@
 // il n'est jamais envoyé au navigateur.
 
 // nom, J, V, N, D, BP, BC (stats avant la J4)
-const LEAGUE = [["Otaku 4",3,3,0,0,20,11],["Πίϻυⲅa",3,2,1,0,23,14],["Natsu 🐉",3,2,1,0,15,11],["𝑅𝐴𝐼𝑇𝐸𝑁𝑆𝐻𝐼",3,2,0,1,27,9],["Makimado",3,2,0,1,16,8],["FC Barcelone",3,2,0,1,22,16],["☠︎ 𝕳𝖎𝖐𝖆𝖗𝖚 𝕲𝖊𝖗𝖔 ☠︎",3,2,0,1,21,16],["Duskwarden",3,2,0,1,16,12],["Nash G. Jr",3,1,1,1,8,10],["𝐅𝐚𝐢 𝐢𝐬𝐡𝐢𝐠𝐚𝐦𝐢",3,1,1,1,17,23],["ƙⲇⲅ ᭢ⲇ 🎭",3,1,1,1,8,14],["𝚅𐐛𝔸Ｄ Ｄ𝞔 𝘚Η૦𝔸Ꮢ𝔸",3,1,0,2,21,18],["1+1 = 3 if you don't use condom",3,1,0,2,8,7],["𝐁𝐥𝐚𝐜𝐤 𝐡𝐞𝐚𝐫𝐭",3,1,0,2,13,18],["Vein",3,1,0,2,11,18],["Senju",3,1,0,2,10,18],["MASHI",3,0,1,2,13,23],["Le PNJ",3,0,0,3,4,22]];
+const LEAGUE = [["Otaku 4",3,3,0,0,20,11],["Πίϻυⲅa",3,2,1,0,23,14],["Natsu 🐉",3,2,1,0,15,11],["𝑅𝐴𝐼𝑇𝐸𝑁𝑆𝐻𝐼",3,2,0,1,27,9],["Makimado",3,2,0,1,16,8],["FC Barcelone",3,2,0,1,22,16],["☠︎ 𝕳𝖎𝖐𝖆𝖗𝖚 𝕲𝖊𝖗𝖔 ☠︎",3,2,0,1,21,16],["Duskwarden",3,2,0,1,16,12],["Nash G. Jr",3,1,1,1,8,10],["Per Son",3,1,1,1,17,23],["ƙⲇⲅ ᭢ⲇ 🎭",3,1,1,1,8,14],["𝚅𐐛𝔸Ｄ Ｄ𝞔 𝘚Η૦𝔸Ꮢ𝔸",3,1,0,2,21,18],["1+1 = 3 if you don't use condom",3,1,0,2,8,7],["𝐁𝐥𝐚𝐜𝐤 𝐡𝐞𝐚𝐫𝐭",3,1,0,2,13,18],["Vein",3,1,0,2,11,18],["Senju",3,1,0,2,10,18],["MASHI",3,0,1,2,13,23],["Le PNJ",3,0,0,3,4,22]];
 // points généraux (monnaie des paris), même ordre que LEAGUE
-const LEAGUE_WALLET = [10622,4225,5809,4316,4573,15021,25668,8643,10691,1240,14312,2325,5398,2575,16502,4019,4978,7384];
+const LEAGUE_WALLET = [10622,4225,5809,4316,4573,15021,25668,8643,10691,21523,14312,2325,5398,2575,16502,4019,4978,7384];
 // autres parieurs : [pseudo, points]
-const OTHERS = [["Per Son",21523],["Manjiro",14324],["Kayden",7051],["Akira",6418],["ESPOIR.sbg",2655],["NYM",2524],["Duxram",2300],["Waffi",2118],["Johan",1450],["Wethermon",1215],["Just Me",884],["Kanroji",750],["Emmanuel",716],["Miguel",525],["David",432],["RAN---DOM",350],["Hachimi",300],["Syr",200],["Yuta",140],["Ariel",75],["Chihiro",50],["Kai",25]];
+const OTHERS = [["𝐅𝐚𝐢 𝐢𝐬𝐡𝐢𝐠𝐚𝐦𝐢",1240],["Manjiro",14324],["Kayden",7051],["Akira",6418],["ESPOIR.sbg",2655],["NYM",2524],["Duxram",2300],["Waffi",2118],["Johan",1450],["Wethermon",1215],["Just Me",884],["Kanroji",750],["Emmanuel",716],["Miguel",525],["David",432],["RAN---DOM",350],["Hachimi",300],["Syr",200],["Yuta",140],["Ariel",75],["Chihiro",50],["Kai",25]];
 const MODS = ["Akira", "Yuta"];
 
 // Journée 4 (paires provisoires), puis J5 à J34 encodées (2 lettres = 1 match)
