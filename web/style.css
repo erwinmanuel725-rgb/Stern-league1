@@ -89,6 +89,7 @@ label.mu{display:inline-block}
 .sched-row,.sched-inline{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);flex-wrap:wrap}
 .sched-row input[type=date],.sched-inline input[type=date]{width:150px;font-family:inherit}
 .sched-row input[type=time],.sched-inline input[type=time]{width:105px;font-family:inherit}
+.sched-row select,.sched-inline select{min-width:110px}
 table.small{min-width:0;font-size:.8rem}td.l{text-align:left;word-break:break-word}
 .hrow{padding:8px 0;border-bottom:1px solid #16307a}
 .hrow .t{font-weight:700;font-size:.92rem}

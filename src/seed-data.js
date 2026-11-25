@@ -7,8 +7,8 @@ const LEAGUE = [["Otaku 4",3,3,0,0,20,11],["Πίϻυⲅa",3,2,1,0,23,14],["Natsu
 // points généraux (monnaie des paris), même ordre que LEAGUE
 const LEAGUE_WALLET = [10622,4225,5809,4316,4573,15021,25668,8643,10691,21523,14312,2325,5398,2575,16502,4019,4978,7384];
 // autres parieurs : [pseudo, points]
-const OTHERS = [["𝐅𝐚𝐢 𝐢𝐬𝐡𝐢𝐠𝐚𝐦𝐢",1240],["Manjiro",14324],["Kayden",7051],["Akira",6418],["ESPOIR.sbg",2655],["NYM",2524],["Duxram",2300],["Waffi",2118],["Johan",1450],["Wethermon",1215],["Just Me",884],["Kanroji",750],["Emmanuel",716],["Miguel",525],["David",432],["RAN---DOM",350],["Hachimi",300],["Syr",200],["Yuta",140],["Ariel",75],["Chihiro",50],["Kai",25]];
-const MODS = ["Akira", "Yuta"];
+const OTHERS = [["𝐅𝐚𝐢 𝐢𝐬𝐡𝐢𝐠𝐚𝐦𝐢",1240],["Manjiro",14324],["Kayden",7051],["Akira",6418],["ESPOIR.sbg",2655],["NYM",2524],["Duxram",2300],["Waffi",2118],["Johan",1450],["Wethermon",1215],["Just Me",884],["Kanroji",750],["Emmanuel",716],["Miguel",525],["David",432],["RAN---DOM",350],["Hachimi",300],["Syr",200],["Yuta",140],["Ariel",75],["Chihiro",50],["Kai",25],["goruto",0]];
+const MODS = ["Akira", "Yuta", "goruto"];
 
 // Journée 4 (paires provisoires), puis J5 à J34 encodées (2 lettres = 1 match)
 const J4 = [[11,17],[15,4],[9,3],[10,1],[8,13],[6,7],[16,2],[14,12],[0,5]];

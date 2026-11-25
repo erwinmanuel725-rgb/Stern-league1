@@ -42,6 +42,7 @@ const schemas = {
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !isNaN(Date.parse(s))),
     hour: z.number().int().min(0).max(23),
     minute: z.number().int().min(0).max(59).optional().default(0),
+    referee: z.string().trim().min(1).max(50).optional(),
   }).strict(),
   scheduleBatch: z.object({
     matches: z.array(z.object({
@@ -49,6 +50,7 @@ const schemas = {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !isNaN(Date.parse(s))),
       hour: z.number().int().min(0).max(23),
       minute: z.number().int().min(0).max(59).optional().default(0),
+      referee: z.string().trim().min(1).max(50).optional(),
     })).min(1).max(100),
   }).strict(),
 };

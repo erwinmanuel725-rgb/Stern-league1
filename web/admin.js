@@ -41,6 +41,22 @@
     var p = (v || '18:00').split(':');
     return { hour: parseInt(p[0], 10) || 0, minute: parseInt(p[1], 10) || 0 };
   };
+  function getModsList() {
+    var list = ['Apolo'];
+    if (A && A.players) {
+      A.players.forEach(function (p) {
+        if (p.kind === 'mod' && list.indexOf(p.name) === -1) list.push(p.name);
+      });
+    }
+    return list;
+  }
+  function modOptions(currentRef) {
+    var mods = getModsList();
+    if (currentRef && mods.indexOf(currentRef) === -1) mods.push(currentRef);
+    return mods.map(function (name) {
+      return '<option value="' + esc(name) + '"' + (name === currentRef ? ' selected' : '') + '>' + esc(name) + '</option>';
+    }).join('');
+  }
 
   function renderLogin() {
     $('#nav').innerHTML = '';
@@ -73,7 +89,8 @@
         '<div class="fld sched-inline"><span class="mu">📅 Horaire :</span>' +
         '<input type="date" id="rd_' + m.id + '" value="' + esc(m.date) + '">' +
         '<input type="time" id="rt_' + m.id + '" value="' + timeInputVal(m.hour, m.minute) + '">' +
-        '<button type="button" class="btn sm" data-act="res-sched" data-m="' + m.id + '">💾 Modifier horaire</button></div>' +
+        '<label class="mu" for="rr_' + m.id + '">🛡️ Modo :</label><select id="rr_' + m.id + '">' + modOptions(m.referee) + '</select>' +
+        '<button type="button" class="btn sm" data-act="res-sched" data-m="' + m.id + '">💾 Modifier</button></div>' +
         '</div>';
     }).join('');
   }
@@ -81,12 +98,14 @@
     var ms = A.matches.filter(function (m) { return m.j === md; });
     return '<div class="fld"><label class="mu" for="mdsel">Journée :</label><select id="mdsel">' + mdOptions() + '</select></div>' +
       '<div class="card"><b class="f">Programmation groupée · Journée ' + md + '</b>' +
-      '<p class="mu">Modifie la date et l’heure de chaque match ou reporte toute la journée en un clic.</p>' +
+      '<p class="mu">Modifie la date, l’heure et le modérateur/arbitre de chaque match, ou applique une modification commune.</p>' +
       '<div class="fld" style="gap:8px;flex-wrap:wrap;align-items:center;">' +
       '<label class="mu" for="bulk_date">Date commune :</label><input type="date" id="bulk_date">' +
-      '<button type="button" class="btn g sm" data-act="sched-apply-date">Appliquer à tous</button>' +
+      '<button type="button" class="btn g sm" data-act="sched-apply-date">Appliquer date à tous</button>' +
       '<button type="button" class="btn g sm" data-act="sched-shift-day" data-days="1">+1 jour</button>' +
       '<button type="button" class="btn g sm" data-act="sched-shift-day" data-days="2">+2 jours</button>' +
+      '<label class="mu" for="bulk_mod">🛡️ Modo commun :</label><select id="bulk_mod"><option value="">— choisir —</option>' + modOptions('') + '</select>' +
+      '<button type="button" class="btn g sm" data-act="sched-apply-mod">Appliquer ce modo à tous</button>' +
       '<button type="button" class="btn sm" data-act="sched-save-all">💾 Enregistrer tous les matchs</button>' +
       '</div></div>' +
       ms.map(function (m) {
@@ -98,6 +117,7 @@
           '<div class="fld sched-row">' +
           '<label class="mu" for="sd_' + m.id + '">Date :</label><input type="date" id="sd_' + m.id + '" value="' + esc(m.date) + '">' +
           '<label class="mu" for="st_' + m.id + '">Heure GMT :</label><input type="time" id="st_' + m.id + '" value="' + timeInputVal(m.hour, m.minute) + '">' +
+          '<label class="mu" for="sr_' + m.id + '">🛡️ Modo :</label><select id="sr_' + m.id + '">' + modOptions(m.referee) + '</select>' +
           '<button type="button" class="btn g sm" data-act="sched-save-one" data-m="' + m.id + '">💾 Enregistrer</button>' +
           '</div></div>';
       }).join('');
@@ -159,16 +179,16 @@
       if (confirmCancel !== id) { confirmCancel = id; render(); return; }
       confirmCancel = null; act(api('DELETE', '/results/' + id), function (r) { return 'Résultat annulé · ' + r.reversed + ' pari(s) remis en jeu'; });
     } else if (a === 'res-sched') {
-      var rdt = $('#rd_' + id).value, rtm = parseTimeInput($('#rt_' + id).value);
+      var rdt = $('#rd_' + id).value, rtm = parseTimeInput($('#rt_' + id).value), rref = ($('#rr_' + id) || {}).value;
       if (!rdt) return toast('Choisis une date valide.', 'err');
-      act(api('PUT', '/matches/' + id + '/schedule', { date: rdt, hour: rtm.hour, minute: rtm.minute }), function () {
-        return 'Horaire du match #' + id + ' mis à jour (' + rdt + ' à ' + ftime(rtm.hour, rtm.minute) + ')';
+      act(api('PUT', '/matches/' + id + '/schedule', { date: rdt, hour: rtm.hour, minute: rtm.minute, referee: rref }), function () {
+        return 'Match #' + id + ' mis à jour (' + rdt + ' à ' + ftime(rtm.hour, rtm.minute) + (rref ? ' · 🛡️ ' + rref : '') + ')';
       });
     } else if (a === 'sched-save-one') {
-      var sdt = $('#sd_' + id).value, stm = parseTimeInput($('#st_' + id).value);
+      var sdt = $('#sd_' + id).value, stm = parseTimeInput($('#st_' + id).value), sref = ($('#sr_' + id) || {}).value;
       if (!sdt) return toast('Choisis une date valide.', 'err');
-      act(api('PUT', '/matches/' + id + '/schedule', { date: sdt, hour: stm.hour, minute: stm.minute }), function () {
-        return 'Horaire du match #' + id + ' mis à jour (' + sdt + ' à ' + ftime(stm.hour, stm.minute) + ')';
+      act(api('PUT', '/matches/' + id + '/schedule', { date: sdt, hour: stm.hour, minute: stm.minute, referee: sref }), function () {
+        return 'Match #' + id + ' mis à jour (' + sdt + ' à ' + ftime(stm.hour, stm.minute) + (sref ? ' · 🛡️ ' + sref : '') + ')';
       });
     } else if (a === 'sched-apply-date') {
       var bd = $('#bulk_date').value;
@@ -176,6 +196,12 @@
       var bms = A.matches.filter(function (z) { return z.j === md; });
       bms.forEach(function (z) { var el = $('#sd_' + z.id); if (el) el.value = bd; });
       toast('Date ' + bd + ' appliquée. Clique sur « Enregistrer tous les matchs » pour sauvegarder.', 'good');
+    } else if (a === 'sched-apply-mod') {
+      var bm = $('#bulk_mod').value;
+      if (!bm) return toast('Choisis d’abord un modérateur dans la liste.', 'err');
+      var mms = A.matches.filter(function (z) { return z.j === md; });
+      mms.forEach(function (z) { var el = $('#sr_' + z.id); if (el) el.value = bm; });
+      toast('Modo ' + bm + ' appliqué aux champs. Clique sur « Enregistrer tous les matchs » pour sauvegarder.', 'good');
     } else if (a === 'sched-shift-day') {
       var days = parseInt(b.getAttribute('data-days'), 10) || 1;
       var dms = A.matches.filter(function (z) { return z.j === md; });
@@ -195,11 +221,12 @@
         var mid = ams[i].id;
         var dt = $('#sd_' + mid).value;
         var tm = parseTimeInput($('#st_' + mid).value);
+        var rf = ($('#sr_' + mid) || {}).value;
         if (!dt) return toast('Date manquante pour le match #' + mid, 'err');
-        list.push({ matchId: mid, date: dt, hour: tm.hour, minute: tm.minute });
+        list.push({ matchId: mid, date: dt, hour: tm.hour, minute: tm.minute, referee: rf });
       }
       act(api('PUT', '/schedule', { matches: list }), function () {
-        return 'Tous les horaires de la Journée ' + md + ' ont été enregistrés !';
+        return 'Tous les horaires et modérateurs de la Journée ' + md + ' ont été enregistrés !';
       });
     } else if (a === 'pts') {
       var pid = +$('#ep').value, nv = parseInt($('#ev').value, 10), why = $('#er').value.trim();

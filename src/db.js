@@ -52,6 +52,15 @@ async function migrate(pool) {
       }
     }
 
+    // S'assurer que le modérateur goruto existe
+    const hasGoruto = await c.query("SELECT 1 FROM players WHERE name = 'goruto'");
+    if (!hasGoruto.rowCount) {
+      const maxIdRow = await c.query("SELECT coalesce(max(id), 39)::int AS m FROM players");
+      const newId = maxIdRow.rows[0].m + 1;
+      await c.query("INSERT INTO players(id, name, kind, balance) VALUES($1, 'goruto', 'mod', 0)", [newId]);
+      await c.query("INSERT INTO wallet_transactions(player_id, delta, balance_after, reason, actor) VALUES($1, 0, 0, 'initial', 'system')", [newId]);
+    }
+
     const { rows } = await c.query('SELECT count(*)::int AS n FROM players');
     if (rows[0].n > 0) return;
 

@@ -161,7 +161,7 @@ async function resetPlayer(pool, playerId) {
 async function setStart(pool, start) {
   await pool.query(`INSERT INTO settings(key,value) VALUES('start',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [start]);
 }
-async function updateMatchSchedule(pool, { matchId, date, hour, minute = 0 }) {
+async function updateMatchSchedule(pool, { matchId, date, hour, minute = 0, referee }) {
   return tx(pool, async (c) => {
     const m = (await c.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE', [matchId])).rows[0];
     if (!m) throw new HttpError(404, 'Match introuvable.');
@@ -170,8 +170,9 @@ async function updateMatchSchedule(pool, { matchId, date, hour, minute = 0 }) {
     const min = parseInt(minute || 0, 10);
     if (isNaN(h) || h < 0 || h > 23) throw new HttpError(400, 'Heure invalide (0 à 23).');
     if (isNaN(min) || min < 0 || min > 59) throw new HttpError(400, 'Minutes invalides (0 à 59).');
-    await c.query('UPDATE matches SET date=$1, hour=$2, minute=$3 WHERE id=$4', [date, h, min, matchId]);
-    return { matchId, date, hour: h, minute: min };
+    const ref = referee && typeof referee === 'string' && referee.trim() ? referee.trim() : m.referee;
+    await c.query('UPDATE matches SET date=$1, hour=$2, minute=$3, referee=$4 WHERE id=$5', [date, h, min, ref, matchId]);
+    return { matchId, date, hour: h, minute: min, referee: ref };
   });
 }
 
@@ -179,7 +180,7 @@ async function updateBatchSchedule(pool, list) {
   return tx(pool, async (c) => {
     const updated = [];
     for (const item of list) {
-      const { matchId, date, hour, minute = 0 } = item;
+      const { matchId, date, hour, minute = 0, referee } = item;
       const m = (await c.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE', [matchId])).rows[0];
       if (!m) continue;
       if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, `Date invalide pour le match #${matchId}.`);
@@ -187,8 +188,9 @@ async function updateBatchSchedule(pool, list) {
       const min = parseInt(minute || 0, 10);
       if (isNaN(h) || h < 0 || h > 23) throw new HttpError(400, `Heure invalide pour le match #${matchId}.`);
       if (isNaN(min) || min < 0 || min > 59) throw new HttpError(400, `Minutes invalides pour le match #${matchId}.`);
-      await c.query('UPDATE matches SET date=$1, hour=$2, minute=$3 WHERE id=$4', [date, h, min, matchId]);
-      updated.push({ matchId, date, hour: h, minute: min });
+      const ref = referee && typeof referee === 'string' && referee.trim() ? referee.trim() : m.referee;
+      await c.query('UPDATE matches SET date=$1, hour=$2, minute=$3, referee=$4 WHERE id=$5', [date, h, min, ref, matchId]);
+      updated.push({ matchId, date, hour: h, minute: min, referee: ref });
     }
     return updated;
   });
