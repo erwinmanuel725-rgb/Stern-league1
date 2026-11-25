@@ -70,7 +70,8 @@
   }
   function poster(m) {
     var x = m.result ? [m.result.h, m.result.a, m.result.ff] : null, h = nameOf(m.h), a = nameOf(m.a), own = st.me && (st.me.id === m.h || st.me.id === m.a);
-    var s = '<div class="poster"><div class="pin"><div class="pj f">Journée ' + m.j + '</div><div class="hr">📅 ' + fmtDate(m.date) + ' · 🕘 ' + m.hour + 'H00 GMT</div><div class="mu tc">' +
+    var timeStr = (m.hour < 10 ? '0' : '') + m.hour + 'H' + (m.minute ? (m.minute < 10 ? '0' : '') + m.minute : '00');
+    var s = '<div class="poster"><div class="pin"><div class="pj f">Journée ' + m.j + '</div><div class="hr">📅 ' + fmtDate(m.date) + ' · 🕘 ' + timeStr + ' GMT</div><div class="mu tc">' +
       (x ? (x[2] ? '<b class="rd">🚩 FORFAIT</b>' : '<b class="ok">✅ TERMINÉ</b>') : '<b class="bl">⏳ À VENIR</b>') + '</div><div class="ref">🛡️ ARBITRE : <b>' + esc(m.referee) + '</b></div>' +
       '<div class="vs"><div class="side">' + av(m.h, 1, fx(x, 0)) + '<b class="f">' + esc(h) + '</b></div>' +
       (x ? '<div class="sco f">' + (x[2] ? (x[2] === 1 ? 'F' : 'V') : x[0]) + ' – ' + (x[2] ? (x[2] === 2 ? 'F' : 'V') : x[1]) + '</div>' : '<div class="vst f">VS</div>') +

@@ -38,6 +38,20 @@ async function migrate(pool) {
   await tx(pool, async (c) => {
     await c.query('SELECT pg_advisory_xact_lock(727001)');
     await c.query(schema);
+
+    // Initialiser la date des matchs si la colonne est vide
+    const unpop = await c.query('SELECT count(*)::int AS n FROM matches WHERE date IS NULL');
+    if (unpop.rows[0].n > 0) {
+      const st = await c.query("SELECT value FROM settings WHERE key='start'");
+      const start = st.rows[0] ? st.rows[0].value : cfg.defaultStart;
+      const D = require('./domain');
+      const missing = (await c.query('SELECT id, matchday, day_in_md, hour, minute FROM matches WHERE date IS NULL')).rows;
+      for (const m of missing) {
+        const d = D.isoDate(start, m);
+        await c.query('UPDATE matches SET date=$1 WHERE id=$2', [d, m.id]);
+      }
+    }
+
     const { rows } = await c.query('SELECT count(*)::int AS n FROM players');
     if (rows[0].n > 0) return;
 

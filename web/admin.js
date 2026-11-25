@@ -22,6 +22,13 @@
   }
   var pname = function (i) { return A.players.filter(function (p) { return p.id === i; })[0].name; };
   var fdate = function (iso) { return new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+  var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  var ftime = function (h, min) { return pad2(h) + 'h' + (min ? pad2(min) : '00'); };
+  var timeInputVal = function (h, min) { return pad2(h) + ':' + pad2(min || 0); };
+  var parseTimeInput = function (v) {
+    var p = (v || '18:00').split(':');
+    return { hour: parseInt(p[0], 10) || 0, minute: parseInt(p[1], 10) || 0 };
+  };
 
   function renderLogin() {
     $('#nav').innerHTML = '';
@@ -38,26 +45,56 @@
   }
 
   // ---------- onglets ----------
-  var TABS = [['res', '⚽ Résultats'], ['cal', '📅 Calendrier'], ['pts', '💰 Points'], ['pl', '👥 Joueurs'], ['log', '📜 Journal'], ['tools', '🛠️ Outils']];
+  var TABS = [['res', '⚽ Résultats'], ['sched', '🕒 Horaires'], ['cal', '📅 Calendrier'], ['pts', '💰 Points'], ['pl', '👥 Joueurs'], ['log', '📜 Journal'], ['tools', '🛠️ Outils']];
   function mdOptions() { var o = ''; for (var j = 4; j <= 34; j++) o += '<option value="' + j + '"' + (j === md ? ' selected' : '') + '>Journée ' + j + (j === A.cur ? ' (en cours)' : '') + '</option>'; return o; }
   function viewRes() {
     var ms = A.matches.filter(function (m) { return m.j === md; });
     return '<div class="fld"><label class="mu" for="mdsel">Journée :</label><select id="mdsel">' + mdOptions() + '</select></div>' + ms.map(function (m) {
       var r = m.result, sc = r ? (r.ff ? (r.ff === 1 ? 'F' : 'V') + ' – ' + (r.ff === 2 ? 'F' : 'V') : r.h + ' – ' + r.a) : null;
-      return '<div class="card"><div class="m"><span class="mu">' + fdate(m.date) + ' · ' + m.hour + 'h GMT · 🛡️ ' + esc(m.referee) + '</span><span class="mu">' + m.bets + ' pari(s) · ' + fmt(m.staked) + ' pts</span></div>' +
+      return '<div class="card"><div class="m"><span class="mu">' + fdate(m.date) + ' · ' + ftime(m.hour, m.minute) + ' GMT · 🛡️ ' + esc(m.referee) + '</span><span class="mu">' + m.bets + ' pari(s) · ' + fmt(m.staked) + ' pts</span></div>' +
         '<div class="m crow"><span class="t r">' + esc(pname(m.h)) + '</span><b class="sc2">' + (sc || 'vs') + '</b><span class="t">' + esc(pname(m.a)) + '</span></div>' +
         '<div class="fld"><label class="sr" for="ha' + m.id + '">Buts ' + esc(pname(m.h)) + '</label><input class="w2" type="number" min="0" max="99" id="ha' + m.id + '" value="' + (r && !r.ff ? r.h : '') + '"> – ' +
         '<label class="sr" for="aa' + m.id + '">Buts ' + esc(pname(m.a)) + '</label><input class="w2" type="number" min="0" max="99" id="aa' + m.id + '" value="' + (r && !r.ff ? r.a : '') + '">' +
         '<button type="button" class="btn g sm" data-act="save" data-m="' + m.id + '">' + (r ? 'Corriger' : 'Valider') + '</button>' +
         '<button type="button" class="btn g sm" data-act="ff" data-m="' + m.id + '" data-ff="1">🚩 Forfait gauche</button><button type="button" class="btn g sm" data-act="ff" data-m="' + m.id + '" data-ff="2">🚩 Forfait droite</button>' +
-        (r ? '<button type="button" class="btn dg sm" data-act="cancel" data-m="' + m.id + '">' + (confirmCancel === m.id ? 'Confirmer l’annulation' : 'Annuler le résultat') + '</button>' : '') + '</div></div>';
+        (r ? '<button type="button" class="btn dg sm" data-act="cancel" data-m="' + m.id + '">' + (confirmCancel === m.id ? 'Confirmer l’annulation' : 'Annuler le résultat') + '</button>' : '') + '</div>' +
+        '<div class="fld sched-inline"><span class="mu">📅 Horaire :</span>' +
+        '<input type="date" id="rd_' + m.id + '" value="' + esc(m.date) + '">' +
+        '<input type="time" id="rt_' + m.id + '" value="' + timeInputVal(m.hour, m.minute) + '">' +
+        '<button type="button" class="btn sm" data-act="res-sched" data-m="' + m.id + '">💾 Modifier horaire</button></div>' +
+        '</div>';
     }).join('');
+  }
+  function viewSched() {
+    var ms = A.matches.filter(function (m) { return m.j === md; });
+    return '<div class="fld"><label class="mu" for="mdsel">Journée :</label><select id="mdsel">' + mdOptions() + '</select></div>' +
+      '<div class="card"><b class="f">Programmation groupée · Journée ' + md + '</b>' +
+      '<p class="mu">Modifie la date et l’heure de chaque match ou reporte toute la journée en un clic.</p>' +
+      '<div class="fld" style="gap:8px;flex-wrap:wrap;align-items:center;">' +
+      '<label class="mu" for="bulk_date">Date commune :</label><input type="date" id="bulk_date">' +
+      '<button type="button" class="btn g sm" data-act="sched-apply-date">Appliquer à tous</button>' +
+      '<button type="button" class="btn g sm" data-act="sched-shift-day" data-days="1">+1 jour</button>' +
+      '<button type="button" class="btn g sm" data-act="sched-shift-day" data-days="2">+2 jours</button>' +
+      '<button type="button" class="btn sm" data-act="sched-save-all">💾 Enregistrer tous les matchs</button>' +
+      '</div></div>' +
+      ms.map(function (m) {
+        var r = m.result;
+        var statusBadge = r ? '<b class="ok">✅ Terminé (' + (r.ff ? 'Forfait' : r.h + '-' + r.a) + ')</b>' : '<b class="bl">⏳ À venir</b>';
+        return '<div class="card" id="scard_' + m.id + '">' +
+          '<div class="m"><span class="mu">Match #' + m.id + ' · 🛡️ ' + esc(m.referee) + '</span>' + statusBadge + '</div>' +
+          '<div class="m crow"><span class="t r">' + esc(pname(m.h)) + '</span><b class="sc2">vs</b><span class="t">' + esc(pname(m.a)) + '</span></div>' +
+          '<div class="fld sched-row">' +
+          '<label class="mu" for="sd_' + m.id + '">Date :</label><input type="date" id="sd_' + m.id + '" value="' + esc(m.date) + '">' +
+          '<label class="mu" for="st_' + m.id + '">Heure GMT :</label><input type="time" id="st_' + m.id + '" value="' + timeInputVal(m.hour, m.minute) + '">' +
+          '<button type="button" class="btn g sm" data-act="sched-save-one" data-m="' + m.id + '">💾 Enregistrer</button>' +
+          '</div></div>';
+      }).join('');
   }
   function viewCal() {
     var s = '<p class="mu">Calendrier complet (visible uniquement ici). Les joueurs ne voient que la journée en cours.</p>';
     for (var j = 4; j <= 34; j++) {
       s += '<div class="card"><b class="f">Journée ' + j + (j === A.cur ? ' · en cours' : j < A.cur ? ' · publiée' : ' · à venir') + '</b>' + A.matches.filter(function (m) { return m.j === j; }).map(function (m) {
-        return '<div class="m crow"><span class="mu">' + fdate(m.date) + ' · ' + m.hour + 'h</span><span class="t r">' + esc(pname(m.h)) + '</span><b>' + (m.result ? m.result.h + ' – ' + m.result.a : 'vs') + '</b><span class="t">' + esc(pname(m.a)) + '</span><span class="mu">🛡️ ' + esc(m.referee) + '</span></div>';
+        return '<div class="m crow"><span class="mu">' + fdate(m.date) + ' · ' + ftime(m.hour, m.minute) + ' GMT</span><span class="t r">' + esc(pname(m.h)) + '</span><b>' + (m.result ? m.result.h + ' – ' + m.result.a : 'vs') + '</b><span class="t">' + esc(pname(m.a)) + '</span><span class="mu">🛡️ ' + esc(m.referee) + '</span></div>';
       }).join('') + '</div>';
     }
     return s;
@@ -85,7 +122,7 @@
       '<div class="card"><b class="f">Sauvegarde</b><p class="mu">Fais un export avant chaque journée.</p><a class="btn g" href="/api/admin/export" download>⬇️ Exporter la base (JSON)</a></div>' +
       '<div class="card"><button type="button" class="btn dg" data-act="logout">Se déconnecter</button></div>';
   }
-  var VIEWS = { res: viewRes, cal: viewCal, pts: viewPts, pl: viewPl, log: viewLog, tools: viewTools };
+  var VIEWS = { res: viewRes, sched: viewSched, cal: viewCal, pts: viewPts, pl: viewPl, log: viewLog, tools: viewTools };
   function render() {
     $('#nav').innerHTML = TABS.map(function (t) { return '<button type="button" class="' + (tab === t[0] ? 'on' : '') + '" data-act="tab" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('');
     $('#view').innerHTML = VIEWS[tab]();
@@ -109,6 +146,49 @@
     } else if (a === 'cancel') {
       if (confirmCancel !== id) { confirmCancel = id; render(); return; }
       confirmCancel = null; act(api('DELETE', '/results/' + id), function (r) { return 'Résultat annulé · ' + r.reversed + ' pari(s) remis en jeu'; });
+    } else if (a === 'res-sched') {
+      var rdt = $('#rd_' + id).value, rtm = parseTimeInput($('#rt_' + id).value);
+      if (!rdt) return toast('Choisis une date valide.', 'err');
+      act(api('PUT', '/matches/' + id + '/schedule', { date: rdt, hour: rtm.hour, minute: rtm.minute }), function () {
+        return 'Horaire du match #' + id + ' mis à jour (' + rdt + ' à ' + ftime(rtm.hour, rtm.minute) + ')';
+      });
+    } else if (a === 'sched-save-one') {
+      var sdt = $('#sd_' + id).value, stm = parseTimeInput($('#st_' + id).value);
+      if (!sdt) return toast('Choisis une date valide.', 'err');
+      act(api('PUT', '/matches/' + id + '/schedule', { date: sdt, hour: stm.hour, minute: stm.minute }), function () {
+        return 'Horaire du match #' + id + ' mis à jour (' + sdt + ' à ' + ftime(stm.hour, stm.minute) + ')';
+      });
+    } else if (a === 'sched-apply-date') {
+      var bd = $('#bulk_date').value;
+      if (!bd) return toast('Choisis d’abord une date dans le champ « Date commune ».', 'err');
+      var bms = A.matches.filter(function (z) { return z.j === md; });
+      bms.forEach(function (z) { var el = $('#sd_' + z.id); if (el) el.value = bd; });
+      toast('Date ' + bd + ' appliquée. Clique sur « Enregistrer tous les matchs » pour sauvegarder.', 'good');
+    } else if (a === 'sched-shift-day') {
+      var days = parseInt(b.getAttribute('data-days'), 10) || 1;
+      var dms = A.matches.filter(function (z) { return z.j === md; });
+      dms.forEach(function (z) {
+        var el = $('#sd_' + z.id);
+        if (el && el.value) {
+          var curD = new Date(el.value + 'T00:00:00Z');
+          curD.setUTCDate(curD.getUTCDate() + days);
+          el.value = curD.toISOString().slice(0, 10);
+        }
+      });
+      toast('Dates décalées de +' + days + ' jour(s). Clique sur « Enregistrer tous les matchs » pour sauvegarder.', 'good');
+    } else if (a === 'sched-save-all') {
+      var ams = A.matches.filter(function (z) { return z.j === md; });
+      var list = [];
+      for (var i = 0; i < ams.length; i++) {
+        var mid = ams[i].id;
+        var dt = $('#sd_' + mid).value;
+        var tm = parseTimeInput($('#st_' + mid).value);
+        if (!dt) return toast('Date manquante pour le match #' + mid, 'err');
+        list.push({ matchId: mid, date: dt, hour: tm.hour, minute: tm.minute });
+      }
+      act(api('PUT', '/schedule', { matches: list }), function () {
+        return 'Tous les horaires de la Journée ' + md + ' ont été enregistrés !';
+      });
     } else if (a === 'pts') {
       var pid = +$('#ep').value, nv = parseInt($('#ev').value, 10), why = $('#er').value.trim();
       if (isNaN(nv) || nv < 0) return toast('Entre un total valide.', 'err'); if (!why) return toast('Indique un motif.', 'err');

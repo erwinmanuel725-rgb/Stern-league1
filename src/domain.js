@@ -61,12 +61,20 @@ function currentMatchday(matches, results) {
   return 34;
 }
 
-/** Coup d'envoi (Date, UTC/GMT) : date de départ de la J4 + 3 jours par journée + jour dans la journée. */
+/** Coup d'envoi (Date, UTC/GMT) : date spécifique du match si définie, sinon date de départ + calcul. */
 function kickoff(start, m) {
+  if (m.date) {
+    const [y, mo, d] = m.date.split('-').map(Number);
+    const min = m.minute || 0;
+    return new Date(Date.UTC(y, mo - 1, d, m.hour, min, 0));
+  }
   const [y, mo, d] = start.split('-').map(Number);
   const n = (m.matchday - 4) * 3 + (m.day_in_md - 1);
-  return new Date(Date.UTC(y, mo - 1, d + n, m.hour, 0, 0));
+  return new Date(Date.UTC(y, mo - 1, d + n, m.hour, m.minute || 0, 0));
 }
-function isoDate(start, m) { return kickoff(start, m).toISOString().slice(0, 10); }
+function isoDate(start, m) {
+  if (m.date) return m.date;
+  return kickoff(start, m).toISOString().slice(0, 10);
+}
 
 module.exports = { OUTCOMES, outcomeOf, forfeitScore, standings, sortStandings, odds, settleBet, currentMatchday, kickoff, isoDate };

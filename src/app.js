@@ -37,6 +37,20 @@ const schemas = {
   points: z.object({ playerId: id, newTotal: z.number().int().min(0).max(10000000).optional(), delta: z.number().int().min(-10000000).max(10000000).optional(), reason: z.string().trim().min(1).max(200) })
     .strict().refine((v) => (v.newTotal === undefined) !== (v.delta === undefined)),
   start: z.object({ start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !isNaN(Date.parse(s))) }).strict(),
+  schedule: z.object({
+    matchId: id,
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !isNaN(Date.parse(s))),
+    hour: z.number().int().min(0).max(23),
+    minute: z.number().int().min(0).max(59).optional().default(0),
+  }).strict(),
+  scheduleBatch: z.object({
+    matches: z.array(z.object({
+      matchId: id,
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((s) => !isNaN(Date.parse(s))),
+      hour: z.number().int().min(0).max(23),
+      minute: z.number().int().min(0).max(59).optional().default(0),
+    })).min(1).max(100),
+  }).strict(),
 };
 const parse = (schema, body) => { const r = schema.safeParse(body); if (!r.success) throw new HttpError(400, 'Requête invalide.'); return r.data; };
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -184,6 +198,18 @@ function createApp(pool, opts = {}) {
     const { start } = parse(schemas.start, req.body);
     await S.setStart(pool, start);
     done('start_set')(req, res, { start });
+  }));
+  admin.put('/matches/:id/schedule', writeLimit, wrap(async (req, res) => {
+    const matchId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(matchId)) throw new HttpError(400, 'Requête invalide.');
+    const b = parse(schemas.schedule, { ...req.body, matchId });
+    const out = await S.updateMatchSchedule(pool, b);
+    done('match_schedule')(req, res, out);
+  }));
+  admin.put('/schedule', writeLimit, wrap(async (req, res) => {
+    const b = parse(schemas.scheduleBatch, req.body);
+    const out = await S.updateBatchSchedule(pool, b.matches);
+    done('schedule_batch')(req, res, { count: out.length, matches: out });
   }));
   api.use('/admin', admin);
   api.use((req, res) => res.status(404).json({ error: 'Introuvable.' }));

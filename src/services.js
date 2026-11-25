@@ -28,7 +28,7 @@ async function publicState(pool, playerId, imgs, now = new Date()) {
     const r = core.results.get(m.id);
     const ko = D.kickoff(core.start, m);
     return {
-      id: m.id, j: m.matchday, h: m.home, a: m.away, hour: m.hour, date: D.isoDate(core.start, m),
+      id: m.id, j: m.matchday, h: m.home, a: m.away, hour: m.hour, minute: m.minute || 0, date: D.isoDate(core.start, m),
       kickoff: ko.toISOString(), referee: m.referee,
       result: r ? { h: r.home_goals, a: r.away_goals, ff: r.forfeit } : null,
       odds: r ? null : D.odds(core.rows, m.home, m.away),
@@ -161,6 +161,39 @@ async function resetPlayer(pool, playerId) {
 async function setStart(pool, start) {
   await pool.query(`INSERT INTO settings(key,value) VALUES('start',$1) ON CONFLICT (key) DO UPDATE SET value=$1`, [start]);
 }
+async function updateMatchSchedule(pool, { matchId, date, hour, minute = 0 }) {
+  return tx(pool, async (c) => {
+    const m = (await c.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE', [matchId])).rows[0];
+    if (!m) throw new HttpError(404, 'Match introuvable.');
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'Format de date invalide (AAAA-MM-JJ attendu).');
+    const h = parseInt(hour, 10);
+    const min = parseInt(minute || 0, 10);
+    if (isNaN(h) || h < 0 || h > 23) throw new HttpError(400, 'Heure invalide (0 à 23).');
+    if (isNaN(min) || min < 0 || min > 59) throw new HttpError(400, 'Minutes invalides (0 à 59).');
+    await c.query('UPDATE matches SET date=$1, hour=$2, minute=$3 WHERE id=$4', [date, h, min, matchId]);
+    return { matchId, date, hour: h, minute: min };
+  });
+}
+
+async function updateBatchSchedule(pool, list) {
+  return tx(pool, async (c) => {
+    const updated = [];
+    for (const item of list) {
+      const { matchId, date, hour, minute = 0 } = item;
+      const m = (await c.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE', [matchId])).rows[0];
+      if (!m) continue;
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, `Date invalide pour le match #${matchId}.`);
+      const h = parseInt(hour, 10);
+      const min = parseInt(minute || 0, 10);
+      if (isNaN(h) || h < 0 || h > 23) throw new HttpError(400, `Heure invalide pour le match #${matchId}.`);
+      if (isNaN(min) || min < 0 || min > 59) throw new HttpError(400, `Minutes invalides pour le match #${matchId}.`);
+      await c.query('UPDATE matches SET date=$1, hour=$2, minute=$3 WHERE id=$4', [date, h, min, matchId]);
+      updated.push({ matchId, date, hour: h, minute: min });
+    }
+    return updated;
+  });
+}
+
 async function adminState(pool) {
   const core = await loadCore(pool);
   const bets = await pool.query(`SELECT match_id, count(*)::int AS n, sum(stake)::int AS total FROM bets GROUP BY match_id`);
@@ -171,7 +204,7 @@ async function adminState(pool) {
     cur: core.cur, start: core.start,
     matches: core.matches.map((m) => {
       const r = core.results.get(m.id);
-      return { id: m.id, j: m.matchday, h: m.home, a: m.away, hour: m.hour, date: D.isoDate(core.start, m), referee: m.referee,
+      return { id: m.id, j: m.matchday, h: m.home, a: m.away, hour: m.hour, minute: m.minute || 0, date: D.isoDate(core.start, m), referee: m.referee,
         result: r ? { h: r.home_goals, a: r.away_goals, ff: r.forfeit } : null,
         bets: (bm.get(m.id) || {}).n || 0, staked: (bm.get(m.id) || {}).total || 0 };
     }),
@@ -191,4 +224,4 @@ async function exportAll(pool) {
   return out;
 }
 
-module.exports = { loadCore, publicState, placeBet, setResult, adjustPoints, resetPlayer, setStart, adminState, audit, exportAll };
+module.exports = { loadCore, publicState, placeBet, setResult, adjustPoints, resetPlayer, setStart, updateMatchSchedule, updateBatchSchedule, adminState, audit, exportAll };

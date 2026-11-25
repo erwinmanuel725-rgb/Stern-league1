@@ -54,6 +54,11 @@ test('journée en cours et coup d’envoi', () => {
   assert.equal(D.kickoff('2026-11-19', ms[0]).toISOString(), '2026-11-19T18:00:00.000Z');
   const j5 = ms.find((m) => m.matchday === 5 && m.day_in_md === 2);
   assert.equal(D.kickoff('2026-11-19', j5).toISOString().slice(0, 10), '2026-11-23');
+
+  // Date et minute personnalisées
+  const custom = { id: 99, matchday: 6, day_in_md: 1, hour: 20, minute: 30, date: '2026-11-26' };
+  assert.equal(D.kickoff('2026-11-19', custom).toISOString(), '2026-11-26T20:30:00.000Z');
+  assert.equal(D.isoDate('2026-11-19', custom), '2026-11-26');
 });
 test('calendrier : 31 journées, chaque joueur joue une fois par journée, arbitres distincts', () => {
   assert.equal(fixtures.length, 31 * 9);

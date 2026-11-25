@@ -15,9 +15,13 @@ CREATE TABLE IF NOT EXISTS matches (
   away smallint NOT NULL REFERENCES players(id),
   day_in_md smallint NOT NULL,
   hour smallint NOT NULL,
+  minute smallint NOT NULL DEFAULT 0,
+  date text,
   referee text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS matches_md ON matches(matchday);
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS date text;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS minute smallint NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS results (
   match_id int PRIMARY KEY REFERENCES matches(id),
   home_goals smallint NOT NULL CHECK (home_goals >= 0),
