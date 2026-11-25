@@ -21,7 +21,19 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = ''; }, 6000);
   }
   var pname = function (i) { return A.players.filter(function (p) { return p.id === i; })[0].name; };
-  var fdate = function (iso) { return new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+  var fdate = function (iso) {
+    if (!iso) return '';
+    var parts = String(iso).split('T')[0].split('-');
+    if (parts.length === 3) {
+      var d = ('0' + parseInt(parts[2], 10)).slice(-2);
+      var m = ('0' + parseInt(parts[1], 10)).slice(-2);
+      return d + '/' + m + '/' + parts[0];
+    }
+    var dt = new Date(iso);
+    var d = ('0' + dt.getUTCDate()).slice(-2);
+    var m = ('0' + (dt.getUTCMonth() + 1)).slice(-2);
+    return d + '/' + m + '/' + dt.getUTCFullYear();
+  };
   var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
   var ftime = function (h, min) { return pad2(h) + 'h' + (min ? pad2(min) : '00'); };
   var timeInputVal = function (h, min) { return pad2(h) + ':' + pad2(min || 0); };

@@ -51,7 +51,19 @@
     if (x[0] === x[1]) return 'dull';
     return ((x[0] > x[1]) === (s === 0)) ? 'win' : '';
   }
-  function fmtDate(iso) { return new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }); }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var parts = String(iso).split('T')[0].split('-');
+    if (parts.length === 3) {
+      var d = ('0' + parseInt(parts[2], 10)).slice(-2);
+      var m = ('0' + parseInt(parts[1], 10)).slice(-2);
+      return d + '/' + m + '/' + parts[0];
+    }
+    var dt = new Date(iso);
+    var d = ('0' + dt.getUTCDate()).slice(-2);
+    var m = ('0' + (dt.getUTCMonth() + 1)).slice(-2);
+    return d + '/' + m + '/' + dt.getUTCFullYear();
+  }
   var fmt = function (n) { return Number(n).toLocaleString('fr-FR'); };
 
   // ---------- rendu ----------
